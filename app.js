@@ -96,7 +96,11 @@ async function generatePredictionForMatch(match, side = "HOME") {
     }),
   });
   const data = await res.json();
-  if (data.error) throw new Error(data.error + (data.detail ? ": " + data.detail : ""));
+  if (data.error) {
+    const err = new Error(data.error + (data.detail ? ": " + data.detail : ""));
+    err.cost = data.cost || null;
+    throw err;
+  }
   return data.prediction;
 }
 
@@ -112,7 +116,7 @@ async function generateAllPredictions(matches, { concurrency = 2, onProgress } =
         const prediction = await generatePredictionForMatch(match);
         results[i] = { ok: true, match, prediction };
       } catch (err) {
-        results[i] = { ok: false, match, error: err.message };
+        results[i] = { ok: false, match, error: err.message, cost: err.cost };
       }
       onProgress?.(i + 1, matches.length);
     }
@@ -531,10 +535,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     const totalCost = predictions.reduce((sum, p) => sum + (p._cost?.usd || 0), 0);
     const totalSearches = predictions.reduce((sum, p) => sum + (p._cost?.web_searches || 0), 0);
-    statusLine.textContent = failed.length
-      ? `Gotowe. Błędy dla ${failed.length} meczów (zobacz konsolę). Koszt udanych: $${totalCost.toFixed(3)} (${totalSearches} wyszukiwań).`
-      : `Gotowe — ${predictions.length} meczów. Koszt: $${totalCost.toFixed(3)} (${totalSearches} wyszukiwań, śr. $${(totalCost / (predictions.length || 1)).toFixed(3)}/mecz).`;
-    if (failed.length) console.warn("Nieudane predykcje:", failed);
+    const failedCost = failed.reduce((sum, f) => sum + (f.cost?.usd || 0), 0);
+    if (failed.length) {
+      statusLine.innerHTML = `Błąd (${failed.length}): <strong>${escapeHtml(failed[0].error)}</strong>` +
+        ` — Koszt TEJ nieudanej próby: $${failedCost.toFixed(4)}` +
+        (predictions.length ? `, koszt udanych: $${totalCost.toFixed(3)}` : "");
+      console.warn("Nieudane predykcje:", failed);
+    } else {
+      statusLine.textContent = `Gotowe — ${predictions.length} meczów. Koszt: $${totalCost.toFixed(3)} (${totalSearches} wyszukiwań, śr. $${(totalCost / (predictions.length || 1)).toFixed(3)}/mecz).`;
+    }
     generateBtn.disabled = false;
     await renderBoard(boardContainer);
     renderBacktestPanel(backtestContainer, await runBacktestAudit());
