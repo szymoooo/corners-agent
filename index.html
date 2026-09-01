@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Corners 1H — Tablica meczów</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+
+    <header class="app-header">
+      <div>
+        <h1>Team Corners — First Half</h1>
+        <div class="subtitle">Predykcje generowane wg Master Prompt v1.2</div>
+      </div>
+      <div class="header-meta" id="dateMeta"></div>
+    </header>
+
+    <section class="control-panel">
+      <textarea id="matchListInput" placeholder="Wklej tu listę meczów, np.:
+🏆 Finland - Veikkausliiga (6 meczów)
+18:00Ilves vs HJK 👆
+18:00Gnistan vs TPS 👆
+..."></textarea>
+      <div class="control-row">
+        <button class="btn btn-outline" id="parseBtn">Wczytaj mecze</button>
+        <button class="btn" id="generateBtn" disabled>Generuj predykcje</button>
+        <button class="btn btn-outline" id="downloadPredictionsBtn">Pobierz predictions.json</button>
+        <label class="btn btn-outline btn-file">
+          Wgraj wyniki (JSON)
+          <input type="file" id="resultsUpload" accept="application/json">
+        </label>
+        <span class="status-line" id="statusLine"></span>
+      </div>
+    </section>
+
+    <main id="boardContainer">
+      <div class="empty-state">Wczytywanie…</div>
+    </main>
+
+    <section class="backtest-panel" id="backtestContainer"></section>
+
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    document.getElementById("dateMeta").textContent = new Date().toLocaleDateString("pl-PL", {
+      weekday: "long", day: "numeric", month: "long"
+    });
+  </script>
+</body>
+</html>
