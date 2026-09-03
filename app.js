@@ -87,6 +87,7 @@ async function generatePredictionForMatch(match, side = "HOME") {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      match_id: match.id,
       league: match.league,
       kickoff: match.kickoff,
       date: match.date,
@@ -284,12 +285,18 @@ async function renderBoard(container) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const matchId = form.dataset.id;
-      const teamA_actual = Number(form.querySelector('[name="teamA_actual"]').value);
-      const teamB_actual = Number(form.querySelector('[name="teamB_actual"]').value);
+      const input = form.querySelector('input[type="number"]');
+      const fieldName = input.name; // "teamA_actual" albo "teamB_actual" - tylko jedno z nich istnieje w tym formularzu
+      const value = Number(input.value);
+
       const results = await loadResults();
-      results[matchId] = { teamA_actual, teamB_actual, entered_at: new Date().toISOString() };
+      const existing = results[matchId] || {};
+      existing[fieldName] = value;
+      existing.entered_at = new Date().toISOString();
+      results[matchId] = existing;
+
       await saveResults(results);
-      form.innerHTML = `<span class="saved-tag">✓ Zapisano wynik: ${teamA_actual} — ${teamB_actual}</span>`;
+      form.innerHTML = `<span class="saved-tag">✓ Zapisano wynik: ${value}</span>`;
     });
   });
 }
