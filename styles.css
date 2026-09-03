@@ -189,7 +189,7 @@ input:focus-visible {
 /* ---------- MATCH ROW ---------- */
 .match-row {
   display: grid;
-  grid-template-columns: 52px 1fr auto 28px;
+  grid-template-columns: 52px 1fr auto auto 28px;
   align-items: center;
   gap: 12px;
   padding: 11px 4px;
@@ -398,6 +398,19 @@ input:focus-visible {
 .verdict-badge.hit-exact { background: var(--accent-soft); color: var(--accent); }
 .verdict-badge.hit-top2 { background: var(--gold-soft); color: var(--gold); }
 .verdict-badge.hit-miss { background: var(--red-soft); color: var(--red); }
+.verdict-badge.pending { background: var(--bg-alt); color: var(--ink-faint); border: 1px solid var(--line); }
+
+/* Werdykty w wierszu meczu (przed rozwinięciem szczegółów) */
+.row-verdicts {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.row-verdicts .verdict-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+}
 
 /* ---------- RESULT INPUT ---------- */
 .result-form {
