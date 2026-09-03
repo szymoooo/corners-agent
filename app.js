@@ -288,15 +288,22 @@ async function renderBoard(container) {
       const input = form.querySelector('input[type="number"]');
       const fieldName = input.name; // "teamA_actual" albo "teamB_actual" - tylko jedno z nich istnieje w tym formularzu
       const value = Number(input.value);
+      const teamKey = fieldName === "teamA_actual" ? "teamA" : "teamB";
 
       const results = await loadResults();
       const existing = results[matchId] || {};
       existing[fieldName] = value;
       existing.entered_at = new Date().toISOString();
       results[matchId] = existing;
-
       await saveResults(results);
-      form.innerHTML = `<span class="saved-tag">✓ Zapisano wynik: ${value}</span>`;
+
+      // Znajdź predykcję tej drużyny, żeby pokazać werdykt trafienia od razu, bez przeładowania
+      const predictions = await loadPredictions();
+      const pred = predictions.find((p) => p.match_id === matchId);
+      const team = pred?.[teamKey];
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = team ? renderResultBlock(team, matchId, teamKey, existing) : `<span class="saved-tag">✓ Zapisano wynik: ${value}</span>`;
+      form.outerHTML = wrapper.innerHTML;
     });
   });
 }
@@ -338,6 +345,44 @@ function quickBadge(team) {
 
 const CATS = ["0-1", "2", "3", "4+"];
 
+function categoryFromCount(n) {
+  if (n <= 1) return "0-1";
+  if (n === 2) return "2";
+  if (n === 3) return "3";
+  return "4+";
+}
+
+// Renderuje albo formularz do wpisania wyniku, albo (jeśli wynik już jest)
+// zapisaną wartość + werdykt trafienia (TOP-1 / TOP-2 / brak trafienia),
+// dokładnie wg logiki z sekcji 37 Master Promptu (exact hit / top-2 hit).
+function renderResultBlock(team, matchId, teamKey, resultEntry) {
+  const actualKey = teamKey === "teamA" ? "teamA_actual" : "teamB_actual";
+  const actualVal = resultEntry?.[actualKey];
+
+  if (actualVal == null) {
+    return `
+      <form class="result-form" data-id="${matchId}">
+        <label>Rzeczywiste rożne 1H:</label>
+        <input type="number" min="0" name="${actualKey}" required>
+        <button type="submit" class="btn btn-outline" style="padding:3px 10px;">Zapisz</button>
+      </form>
+    `;
+  }
+
+  const actualCat = categoryFromCount(actualVal);
+  const isExact = actualCat === team.top1;
+  const isTop2 = isExact || actualCat === team.top2;
+  const verdictClass = isExact ? "hit-exact" : isTop2 ? "hit-top2" : "hit-miss";
+  const verdictText = isExact ? "🎯 Trafienie TOP-1" : isTop2 ? "🟡 Trafienie TOP-2" : "❌ Brak trafienia";
+
+  return `
+    <div class="result-verdict">
+      <span class="saved-tag">✓ Rzeczywisty wynik: ${actualVal} (kategoria ${actualCat})</span>
+      <span class="verdict-badge ${verdictClass}">${verdictText}</span>
+    </div>
+  `;
+}
+
 function renderTeamBlock(team, matchId, teamKey, resultEntry) {
   const dist = team.distribution || {};
   const maxVal = Math.max(...CATS.map((c) => dist[c] || 0), 1);
@@ -364,24 +409,17 @@ function renderTeamBlock(team, matchId, teamKey, resultEntry) {
     .join("");
 
   const actualKey = teamKey === "teamA" ? "teamA_actual" : "teamB_actual";
-  const resultBlock = resultEntry && resultEntry[actualKey] != null
-    ? `<span class="saved-tag">✓ Rzeczywisty wynik: ${resultEntry[actualKey]}</span>`
-    : `
-      <form class="result-form" data-id="${matchId}">
-        <label>Rzeczywiste rożne 1H:</label>
-        <input type="number" min="0" name="${actualKey}" required>
-        <button type="submit" class="btn btn-outline" style="padding:3px 10px;">Zapisz</button>
-      </form>
-    `;
+  const resultBlock = renderResultBlock(team, matchId, teamKey, resultEntry);
 
   return `
     <div class="team-block">
       <div class="team-block-head">
-        <span class="team-name">${escapeHtml(team.name)}</span>
+        <span class="team-name">
+          ${escapeHtml(team.name)}
+          ${team.insufficient_data ? `<span class="insufficient-flag">INSUFFICIENT DATA</span>` : ""}
+        </span>
         <span class="lambda">${team.final_lambda?.toFixed(2) ?? "–"}<span>λ</span></span>
       </div>
-
-      ${team.insufficient_data ? `<span class="insufficient-flag">INSUFFICIENT DATA</span>` : ""}
 
       ${distRows}
 
@@ -440,13 +478,6 @@ function handleResultsFileUpload(file, onDone) {
 // ============================================================
 // 6. BACKTEST AUDIT (czysta matematyka — sekcje 37-41 Master Promptu)
 // ============================================================
-function categoryFromCount(n) {
-  if (n <= 1) return "0-1";
-  if (n === 2) return "2";
-  if (n === 3) return "3";
-  return "4+";
-}
-
 function brierScoreForCategory(distribution, actualCat) {
   let sum = 0;
   for (const c of CATS) {
