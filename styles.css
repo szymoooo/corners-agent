@@ -270,6 +270,10 @@ input:focus-visible {
 .team-block-head .team-name {
   font-weight: 600;
   font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .team-block-head .lambda {
@@ -361,13 +365,39 @@ input:focus-visible {
 
 .insufficient-flag {
   display: inline-block;
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--red);
   background: var(--red-soft);
-  padding: 2px 8px;
+  padding: 1px 7px;
   border-radius: 10px;
-  margin-bottom: 8px;
+  white-space: nowrap;
 }
+
+/* ---------- WERDYKT TRAFIENIA (po wprowadzeniu wyniku) ---------- */
+.result-verdict {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.verdict-badge {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.verdict-badge.hit-exact { background: var(--accent-soft); color: var(--accent); }
+.verdict-badge.hit-top2 { background: var(--gold-soft); color: var(--gold); }
+.verdict-badge.hit-miss { background: var(--red-soft); color: var(--red); }
 
 /* ---------- RESULT INPUT ---------- */
 .result-form {
