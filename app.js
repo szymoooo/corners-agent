@@ -1,5 +1,5 @@
 /**
- * FRONTEND — Team Corners 1H
+ * FRONTEND — Team Corners 1H- test
  * Podpięty pod index.html + styles.css.
  * Wymaga wdrożonego workera (worker.js) — ustaw WORKER_URL poniżej.
  */
