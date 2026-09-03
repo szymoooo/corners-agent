@@ -288,7 +288,6 @@ async function renderBoard(container) {
       const input = form.querySelector('input[type="number"]');
       const fieldName = input.name; // "teamA_actual" albo "teamB_actual" - tylko jedno z nich istnieje w tym formularzu
       const value = Number(input.value);
-      const teamKey = fieldName === "teamA_actual" ? "teamA" : "teamB";
 
       const results = await loadResults();
       const existing = results[matchId] || {};
@@ -296,14 +295,16 @@ async function renderBoard(container) {
       existing.entered_at = new Date().toISOString();
       results[matchId] = existing;
       await saveResults(results);
+      await renderBoard(container);
+      renderBacktestPanel(document.getElementById("backtestContainer"), await runBacktestAudit());
 
-      // Znajdź predykcję tej drużyny, żeby pokazać werdykt trafienia od razu, bez przeładowania
-      const predictions = await loadPredictions();
-      const pred = predictions.find((p) => p.match_id === matchId);
-      const team = pred?.[teamKey];
-      const wrapper = document.createElement("div");
-      wrapper.innerHTML = team ? renderResultBlock(team, matchId, teamKey, existing) : `<span class="saved-tag">✓ Zapisano wynik: ${value}</span>`;
-      form.outerHTML = wrapper.innerHTML;
+      // Nie zwijaj z powrotem wiersza, który był otwarty w momencie zapisu
+      const reopened = document.getElementById("details-" + matchId);
+      const reopenedRow = container.querySelector(`.match-row[data-id="${matchId}"]`);
+      if (reopened && reopenedRow) {
+        reopened.style.display = "grid";
+        reopenedRow.classList.add("expanded");
+      }
     });
   });
 }
@@ -313,9 +314,17 @@ function renderMatchRow(p, resultEntry) {
   row.className = "match-row";
   row.dataset.id = p.match_id;
 
+  const actualA = resultEntry?.teamA_actual;
+  const actualB = resultEntry?.teamB_actual;
+  const verdictsHtml =
+    actualA == null && actualB == null
+      ? `<span class="verdict-badge pending">⏳ Oczekuje</span>`
+      : `${verdictBadgeHtml(p.teamA, actualA)} : ${verdictBadgeHtml(p.teamB, actualB)}`;
+
   row.innerHTML = `
     <span class="kickoff">${p.kickoff}</span>
     <span class="teams">${p.teamA.name} vs ${p.teamB.name}</span>
+    <span class="row-verdicts">${verdictsHtml}</span>
     <span class="quick-badges">
       ${quickBadge(p.teamA)}
       ${quickBadge(p.teamB)}
@@ -352,6 +361,27 @@ function categoryFromCount(n) {
   return "4+";
 }
 
+// Liczy sam werdykt trafienia (bez HTML) - używane i w wierszu meczu, i w szczegółach.
+function getVerdict(team, actualVal) {
+  if (actualVal == null) return null; // brak wyniku jeszcze
+  const actualCat = categoryFromCount(actualVal);
+  const isExact = actualCat === team.top1;
+  const isTop2 = isExact || actualCat === team.top2;
+  return {
+    actualCat,
+    isExact,
+    isTop2,
+    cls: isExact ? "hit-exact" : isTop2 ? "hit-top2" : "hit-miss",
+    text: isExact ? "🎯 TOP-1" : isTop2 ? "🟡 TOP-2" : "❌ Brak",
+  };
+}
+
+function verdictBadgeHtml(team, actualVal) {
+  const v = getVerdict(team, actualVal);
+  if (!v) return `<span class="verdict-badge pending">⏳ Oczekuje</span>`;
+  return `<span class="verdict-badge ${v.cls}">${v.text}</span>`;
+}
+
 // Renderuje albo formularz do wpisania wyniku, albo (jeśli wynik już jest)
 // zapisaną wartość + werdykt trafienia (TOP-1 / TOP-2 / brak trafienia),
 // dokładnie wg logiki z sekcji 37 Master Promptu (exact hit / top-2 hit).
@@ -369,16 +399,13 @@ function renderResultBlock(team, matchId, teamKey, resultEntry) {
     `;
   }
 
-  const actualCat = categoryFromCount(actualVal);
-  const isExact = actualCat === team.top1;
-  const isTop2 = isExact || actualCat === team.top2;
-  const verdictClass = isExact ? "hit-exact" : isTop2 ? "hit-top2" : "hit-miss";
-  const verdictText = isExact ? "🎯 Trafienie TOP-1" : isTop2 ? "🟡 Trafienie TOP-2" : "❌ Brak trafienia";
+  const v = getVerdict(team, actualVal);
+  const verdictText = v.isExact ? "🎯 Trafienie TOP-1" : v.isTop2 ? "🟡 Trafienie TOP-2" : "❌ Brak trafienia";
 
   return `
     <div class="result-verdict">
-      <span class="saved-tag">✓ Rzeczywisty wynik: ${actualVal} (kategoria ${actualCat})</span>
-      <span class="verdict-badge ${verdictClass}">${verdictText}</span>
+      <span class="saved-tag">✓ Rzeczywisty wynik: ${actualVal} (kategoria ${v.actualCat})</span>
+      <span class="verdict-badge ${v.cls}">${verdictText}</span>
     </div>
   `;
 }
