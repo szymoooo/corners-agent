@@ -232,6 +232,18 @@ function downloadJSON(obj, filename) {
 // ============================================================
 // 4. RENDEROWANIE
 // ============================================================
+function formatDateShort(isoDate) {
+  if (!isoDate) return "";
+  const [, m, d] = isoDate.split("-");
+  return `${d}.${m}`;
+}
+
+// Mecz jest "rozliczony", gdy oba zespoły mają wpisany rzeczywisty wynik.
+function isSettled(match, results) {
+  const r = results[match.match_id];
+  return r && r.teamA_actual != null && r.teamB_actual != null;
+}
+
 function groupBy(arr, fn) {
   return arr.reduce((acc, item) => {
     const key = fn(item);
@@ -241,33 +253,44 @@ function groupBy(arr, fn) {
 }
 
 async function renderBoard(container) {
-  const predictions = await loadPredictions();
+  const allPredictions = await loadPredictions();
   const results = await loadResults();
 
-  if (!predictions.length) {
+  const pending = allPredictions.filter((p) => !isSettled(p, results));
+  const settled = allPredictions.filter((p) => isSettled(p, results));
+
+  if (!allPredictions.length) {
     container.innerHTML = `<div class="empty-state">Brak wygenerowanych predykcji. Wklej listę meczów powyżej i kliknij „Generuj predykcje”.</div>`;
-    return;
-  }
+  } else if (!pending.length) {
+    container.innerHTML = `<div class="empty-state">Wszystkie mecze rozliczone — zobacz archiwum poniżej panelu Backtest.</div>`;
+  } else {
+    const byLeague = groupBy(pending, (p) => p.league);
+    container.innerHTML = "";
 
-  const byLeague = groupBy(predictions, (p) => p.league);
-  container.innerHTML = "";
+    for (const [league, preds] of Object.entries(byLeague)) {
+      const section = document.createElement("div");
+      section.className = "league-section";
+      section.innerHTML = `
+        <div class="league-header">
+          <span class="league-dot"></span>
+          <h3>${league}</h3>
+          <span class="count">(${preds.length} ${preds.length === 1 ? "mecz" : "meczów"})</span>
+        </div>
+      `;
 
-  for (const [league, preds] of Object.entries(byLeague)) {
-    const section = document.createElement("div");
-    section.className = "league-section";
-    section.innerHTML = `
-      <div class="league-header">
-        <span class="league-dot"></span>
-        <h3>${league}</h3>
-        <span class="count">(${preds.length} ${preds.length === 1 ? "mecz" : "meczów"})</span>
-      </div>
-    `;
-
-    for (const p of preds) {
-      section.appendChild(renderMatchRow(p, results[p.match_id]));
+      for (const p of preds) {
+        section.appendChild(renderMatchRow(p, results[p.match_id]));
+      }
+      container.appendChild(section);
     }
-    container.appendChild(section);
+
+    attachRowHandlers(container);
   }
+
+  renderArchive(document.getElementById("archiveContainer"), settled, results);
+}
+
+function attachRowHandlers(container) {
 
   container.querySelectorAll(".match-row").forEach((row) => {
     row.addEventListener("click", (e) => {
@@ -322,7 +345,7 @@ function renderMatchRow(p, resultEntry) {
       : `${verdictBadgeHtml(p.teamA, actualA)} : ${verdictBadgeHtml(p.teamB, actualB)}`;
 
   row.innerHTML = `
-    <span class="kickoff">${p.kickoff}</span>
+    <span class="kickoff">${p.kickoff}<span class="match-date">${formatDateShort(p.date)}</span></span>
     <span class="teams">${p.teamA.name} vs ${p.teamB.name}</span>
     <span class="row-verdicts">${verdictsHtml}</span>
     <span class="quick-badges">
@@ -345,6 +368,52 @@ function renderMatchRow(p, resultEntry) {
   container.appendChild(row);
   container.appendChild(details);
   return container;
+}
+
+// Lista meczów w pełni rozliczonych (oba wyniki wpisane) - pod panelem Backtest.
+// Klikalna: rozwija te same szczegóły co na głównej liście, żeby móc np. poprawić literówkę w wyniku.
+function renderArchive(container, settled, results) {
+  if (!settled.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const sorted = [...settled].sort((a, b) => (b.date + b.kickoff).localeCompare(a.date + a.kickoff));
+
+  container.innerHTML = `<h2>Archiwum rozliczonych meczów (${sorted.length})</h2>`;
+
+  for (const p of sorted) {
+    const resultEntry = results[p.match_id];
+    const verdictsHtml = `${verdictBadgeHtml(p.teamA, resultEntry.teamA_actual)} : ${verdictBadgeHtml(p.teamB, resultEntry.teamB_actual)}`;
+
+    const row = document.createElement("div");
+    row.className = "archive-row";
+    row.dataset.id = p.match_id;
+    row.innerHTML = `
+      <span class="kickoff">${formatDateShort(p.date)}<span class="match-date">${p.kickoff}</span></span>
+      <span class="teams">
+        <span class="archive-league">${p.league}</span>
+        ${p.teamA.name} vs ${p.teamB.name}
+      </span>
+      <span class="row-verdicts">${verdictsHtml}</span>
+    `;
+
+    const details = document.createElement("div");
+    details.className = "details";
+    details.id = "details-" + p.match_id;
+    details.style.display = "none";
+    details.innerHTML =
+      renderTeamBlock(p.teamA, p.match_id, "teamA", resultEntry) +
+      renderTeamBlock(p.teamB, p.match_id, "teamB", resultEntry);
+
+    row.addEventListener("click", () => {
+      const isOpen = details.style.display === "grid";
+      details.style.display = isOpen ? "none" : "grid";
+    });
+
+    container.appendChild(row);
+    container.appendChild(details);
+  }
 }
 
 function quickBadge(team) {
