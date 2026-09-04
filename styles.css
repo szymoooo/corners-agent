@@ -489,6 +489,37 @@ input:focus-visible {
   font-size: 13px;
 }
 
+/* ---------- TABELA PROGÓW λ_SUM ---------- */
+.threshold-panel {
+  margin-top: 32px;
+}
+.threshold-panel h2 {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.threshold-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.threshold-table th {
+  text-align: left;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--ink-muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.threshold-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.threshold-table tr:last-child td { border-bottom: none; }
+
 /* ---------- ARCHIWUM (mecze rozliczone) ---------- */
 .archive-panel {
   margin-top: 24px;
