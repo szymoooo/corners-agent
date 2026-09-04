@@ -1,5 +1,5 @@
 /**
- * FRONTEND — Team Corners 1H- test
+ * FRONTEND — Team Corners 1H
  * Podpięty pod index.html + styles.css.
  * Wymaga wdrożonego workera (worker.js) — ustaw WORKER_URL poniżej.
  */
@@ -351,6 +351,7 @@ function renderMatchRow(p, resultEntry) {
     <span class="quick-badges">
       ${quickBadge(p.teamA)}
       ${quickBadge(p.teamB)}
+      ${lambdaSumBadgeHtml(p.teamA, p.teamB)}
       ${p._cost ? `<span class="pill pill-blue">$${p._cost.usd.toFixed(3)}</span>` : ""}
     </span>
     <button class="expand-btn" aria-label="Rozwiń szczegóły">⌄</button>
@@ -395,7 +396,10 @@ function renderArchive(container, settled, results) {
         <span class="archive-league">${p.league}</span>
         ${p.teamA.name} vs ${p.teamB.name}
       </span>
-      <span class="row-verdicts">${verdictsHtml}</span>
+      <span class="row-verdicts">
+        ${lambdaSumBadgeHtml(p.teamA, p.teamB)}
+        ${verdictsHtml}
+      </span>
     `;
 
     const details = document.createElement("div");
@@ -414,6 +418,17 @@ function renderArchive(container, settled, results) {
     container.appendChild(row);
     container.appendChild(details);
   }
+}
+
+// Progi sprawdzane od najwyższego - pokazujemy tylko NAJWYŻSZY przekroczony próg,
+// żeby uniknąć bałaganu wieloma badge'ami na raz.
+const LAMBDA_THRESHOLDS = [5.5, 5.0, 4.5, 4.0, 3.5];
+
+function lambdaSumBadgeHtml(teamA, teamB) {
+  const sum = (teamA?.final_lambda || 0) + (teamB?.final_lambda || 0);
+  const threshold = LAMBDA_THRESHOLDS.find((t) => sum > t);
+  if (threshold == null) return "";
+  return `<span class="pill pill-violet" title="λ_sum = ${sum.toFixed(2)}">&gt;${threshold.toFixed(1)}</span>`;
 }
 
 function quickBadge(team) {
@@ -520,8 +535,8 @@ function renderTeamBlock(team, matchId, teamKey, resultEntry) {
       ${distRows}
 
       <div class="pick-line">
-        <span>Typ: <strong>${team.top1}</strong> (${team.top1_prob}%)</span>
-        <span>2. wybór: ${team.top2} (${team.top2_prob}%)</span>
+        <span>TOP 1: <strong>${team.top1}</strong> (${team.top1_prob}%)</span>
+        <span>TOP 2: ${team.top2} (${team.top2_prob}%)</span>
       </div>
 
       <div class="confidence-meter">
