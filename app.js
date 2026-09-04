@@ -287,6 +287,7 @@ async function renderBoard(container) {
     attachRowHandlers(container);
   }
 
+  renderLambdaThresholdTable(document.getElementById("thresholdContainer"), settled, results);
   renderArchive(document.getElementById("archiveContainer"), settled, results);
 }
 
