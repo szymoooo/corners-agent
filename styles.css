@@ -22,6 +22,8 @@
   --blue-soft: #E9F1F6;
   --red: #B23A34;
   --red-soft: #FBEAE9;
+  --violet: #7C5CBF;
+  --violet-soft: #F1ECFA;
 
   --radius-sm: 3px;
   --radius-md: 6px;
@@ -235,6 +237,7 @@ input:focus-visible {
 .pill-gold { background: var(--gold-soft); color: var(--gold); }
 .pill-blue { background: var(--blue-soft); color: var(--blue); }
 .pill-muted { background: var(--bg-alt); color: var(--ink-faint); border: 1px solid var(--line); }
+.pill-violet { background: var(--violet-soft); color: var(--violet); }
 
 .expand-btn {
   background: none;
