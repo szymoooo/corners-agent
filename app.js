@@ -466,6 +466,53 @@ function verdictBadgeHtml(team, actualVal) {
   return `<span class="verdict-badge ${v.cls}">${v.text}</span>`;
 }
 
+// Trafność progu λ_sum: dla każdego progu sprawdza, ile rozliczonych meczów miało
+// przewidywaną sumę λ (A+B) powyżej progu, i ile z nich rzeczywiście miało 4+ rożnych łącznie.
+function computeLambdaThresholdAccuracy(settled, results) {
+  return LAMBDA_THRESHOLDS.slice().reverse().map((threshold) => {
+    const overThreshold = settled.filter((p) => {
+      const sum = (p.teamA?.final_lambda || 0) + (p.teamB?.final_lambda || 0);
+      return sum > threshold;
+    });
+    const hits = overThreshold.filter((p) => {
+      const r = results[p.match_id];
+      return (r.teamA_actual + r.teamB_actual) >= 4;
+    });
+    return {
+      threshold,
+      matchCount: overThreshold.length,
+      hitCount: hits.length,
+      accuracy: overThreshold.length ? hits.length / overThreshold.length : null,
+    };
+  });
+}
+
+function renderLambdaThresholdTable(container, settled, results) {
+  if (!settled.length) {
+    container.innerHTML = "";
+    return;
+  }
+  const rows = computeLambdaThresholdAccuracy(settled, results);
+  container.innerHTML = `
+    <h2>Trafność progu λ_sum (suma λ obu drużyn → rzeczywiste 4+ rożnych łącznie w 1H)</h2>
+    <table class="threshold-table">
+      <thead>
+        <tr><th>Próg</th><th>Meczów nad progiem</th><th>Trafień (≥4 rzecz.)</th><th>Trafność</th></tr>
+      </thead>
+      <tbody>
+        ${rows.map((r) => `
+          <tr>
+            <td>&gt;${r.threshold.toFixed(1)}</td>
+            <td>${r.matchCount}</td>
+            <td>${r.matchCount ? r.hitCount : "—"}</td>
+            <td>${r.accuracy == null ? "—" : Math.round(r.accuracy * 100) + "%"}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
 // Renderuje albo formularz do wpisania wyniku, albo (jeśli wynik już jest)
 // zapisaną wartość + werdykt trafienia (TOP-1 / TOP-2 / brak trafienia),
 // dokładnie wg logiki z sekcji 37 Master Promptu (exact hit / top-2 hit).
