@@ -37,12 +37,14 @@ function parseMatchList(rawText) {
   const matches = [];
   // Fallback, gdyby użytkownik wkleił same mecze bez nagłówka ligi (🏆 ... (N meczów))
   let currentLeague = "Inne mecze";
+  const seenKeys = new Set(); // dedupe: te same drużyny wklejone dwa razy (np. bez godziny w drugiej linii)
 
   // Nagłówek ligi: dowolny tekst zakończony "(<liczba> mecz...)", emoji 🏆 opcjonalne.
   const leagueRe = /^(?:🏆\s*)?(.+?)\s*\(\s*\d+\s*mecz/iu;
-  // Wiersz meczu: godzina (HH:MM lub HH.MM), potem dwie nazwy drużyn rozdzielone " vs ",
-  // z tolerancją na dowolne "śmieci" na końcu (emoji, strzałki, spacje) po drugiej drużynie.
-  const matchRe = /^(\d{1,2}[:.]\d{2})\s*[-–—]?\s*(.+?)\s+vs\.?\s+(.+?)\s*[^\p{L}\p{N}).\]]*$/iu;
+  // Wiersz meczu: godzina (HH:MM lub HH.MM), potem dwie nazwy drużyn rozdzielone
+  // albo słowem "vs", albo myślnikiem (-, – en dash, — em dash),
+  // z tolerancją na dowolne "śmieci" na końcu (emoji, strzałki, spacje, przecinek) po drugiej drużynie.
+  const matchRe = /^(\d{1,2}[:.]\d{2})\s*[-–—]?\s*(.+?)\s+(?:vs\.?|[-–—])\s+(.+?)\s*[^\p{L}\p{N}).\]]*$/iu;
 
   for (const line of lines) {
     const looksLikeMatch = /^\d{1,2}[:.]\d{2}/.test(line);
@@ -54,6 +56,10 @@ function parseMatchList(rawText) {
     const m = line.match(matchRe);
     if (m) {
       const [, kickoff, teamA, teamB] = m;
+      const dedupeKey = `${currentLeague}__${teamA.trim().toLowerCase()}__${teamB.trim().toLowerCase()}`;
+      if (seenKeys.has(dedupeKey)) continue; // odrzuć duplikat tego samego meczu
+      seenKeys.add(dedupeKey);
+
       matches.push({
         id: slugify(`${currentLeague}_${teamA}_${teamB}_${todayISO()}`),
         league: currentLeague,
